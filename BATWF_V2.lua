@@ -1,0 +1,323 @@
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+
+-- Константы точек
+local FARM_SPOT = CFrame.new(50, 5, -10)
+local SELL_SPOT = CFrame.new(40, 5, -22)
+local WAIT_SPOT = CFrame.new(-2.82, 5, 8.16)
+local PREPARE_SPOTS = {
+    CFrame.new(46.5, 8.5, 5),
+    CFrame.new(41, 8.5, 5), 
+    CFrame.new(35.5, 8.5, 5)
+}
+
+-- Получаем ссылки на объекты
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Stones = LocalPlayer:WaitForChild("Stones")
+local Limits = LocalPlayer:WaitForChild("Limits")
+local Bricks = LocalPlayer:WaitForChild("Bricks")
+
+-- Сохраняем исходное состояние камеры
+local originalCameraType = workspace.CurrentCamera.CameraType
+local originalCameraCFrame = workspace.CurrentCamera.CFrame
+
+-- Создаем интерфейс
+local screenGui = Instance.new("ScreenGui", CoreGui)
+screenGui.Name = "AutoFarmUI_"..math.random(1000,9999)
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 150, 0, 80)
+mainFrame.Position = UDim2.new(0, 20, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BackgroundTransparency = 0.7
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+local dragHandle = Instance.new("TextLabel")
+dragHandle.Name = "DragHandle"
+dragHandle.Size = UDim2.new(1, 0, 0, 30)
+dragHandle.Text = "⚡Auto Farm⚡"
+dragHandle.TextColor3 = Color3.fromRGB(255, 255, 255)
+dragHandle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+dragHandle.BackgroundTransparency = 0.7
+dragHandle.TextSize = 10
+dragHandle.Parent = mainFrame
+
+local activateButton = Instance.new("TextButton")
+activateButton.Size = UDim2.new(0.8, 0, 0, 40)
+activateButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+activateButton.Text = "OFF"
+activateButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+activateButton.Parent = mainFrame
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 20, 0, 20)
+closeButton.Position = UDim2.new(1, -25, 0, 5)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeButton.Parent = mainFrame
+
+-- Переменные состояния
+local isRunning = false
+local cameraConnection, fSpamConnection
+local dragStartPos, dragStartFramePos
+
+-- Функция полной остановки
+local function stopAllProcesses()
+    isRunning = false
+    
+    -- Восстанавливаем камеру
+    if cameraConnection then
+        cameraConnection:Disconnect()
+        cameraConnection = nil
+        workspace.CurrentCamera.CameraType = originalCameraType
+        workspace.CurrentCamera.CFrame = originalCameraCFrame
+    end
+    
+    -- Останавливаем спам
+    if fSpamConnection then
+        fSpamConnection:Disconnect() 
+        fSpamConnection = nil
+    end
+    
+    -- Отпускаем все клавиши
+    VirtualInputManager:SendKeyEvent(false, "F", false, nil)
+    VirtualInputManager:SendKeyEvent(false, "E", false, nil)
+    VirtualInputManager:SendKeyEvent(false, "One", false, nil)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, nil, 0)
+end
+
+-- Функция перетаскивания
+local function startDrag(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragStartPos = input.Position
+        dragStartFramePos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragStartPos = nil
+            end
+        end)
+    end
+end
+
+local function updateDrag(input)
+    if dragStartPos then
+        local delta = input.Position - dragStartPos
+        mainFrame.Position = UDim2.new(
+            dragStartFramePos.X.Scale,
+            dragStartFramePos.X.Offset + delta.X,
+            dragStartFramePos.Y.Scale,
+            dragStartFramePos.Y.Offset + delta.Y
+        )
+    end
+end
+
+dragHandle.InputBegan:Connect(startDrag)
+dragHandle.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        updateDrag(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        updateDrag(input)
+    end
+end)
+
+-- Функция очистки
+local function cleanUp()
+    stopAllProcesses()
+    if screenGui then screenGui:Destroy() end
+end
+
+-- Функция спама на F
+local function startFSpam()
+    fSpamConnection = RunService.Heartbeat:Connect(function()
+        if isRunning then
+            VirtualInputManager:SendKeyEvent(true, "F", false, nil)
+            task.wait(0.05)
+            VirtualInputManager:SendKeyEvent(false, "F", false, nil)
+        end
+    end)
+end
+
+-- Функция для нажатия E
+local function pressE(duration)
+    VirtualInputManager:SendKeyEvent(true, "E", false, nil)
+    task.wait(duration)
+    VirtualInputManager:SendKeyEvent(false, "E", false, nil)
+end
+
+-- Безопасная телепортация
+local function safeTeleport(cframe)
+    pcall(function()
+        HumanoidRootPart.CFrame = cframe
+    end)
+    task.wait(0.5)
+end
+
+-- Подготовка перед фармом
+local function prepareForFarm()
+    for _, spot in ipairs(PREPARE_SPOTS) do
+        safeTeleport(spot)
+        pressE(2.5)
+    end
+end
+
+-- Плавная телепортация по точкам
+local function smoothTeleport(points, duration)
+    local startTime = time()
+    for i = 1, #points-1 do
+        local startPos = points[i]
+        local endPos = points[i+1]
+        local segmentStart = startTime + (i-1)*(duration/(#points-1))
+        
+        while time() < segmentStart + duration/(#points-1) and isRunning do
+            if Bricks.Value <= 0 then return false end
+            local progress = (time()-segmentStart)/(duration/(#points-1))
+            HumanoidRootPart.CFrame = CFrame.new(startPos:Lerp(endPos, math.min(progress,1)))
+            task.wait()
+        end
+    end
+    return true
+end
+
+-- Основной цикл фарма
+local function farmProcess()
+    -- Настройка камеры
+    local camera = workspace.CurrentCamera
+    camera.CameraType = Enum.CameraType.Scriptable
+    cameraConnection = RunService.RenderStepped:Connect(function()
+        if isRunning and Character and HumanoidRootPart then
+            camera.CFrame = CFrame.new(HumanoidRootPart.Position + Vector3.new(0,50,0), HumanoidRootPart.Position)
+        end
+    end)
+    
+    startFSpam()
+    
+    while isRunning do
+        -- Подготовка при Bricks = 0
+        if Bricks.Value <= 0 then prepareForFarm() end
+        
+        -- 1. Телепорт на точку фарма
+        safeTeleport(FARM_SPOT)
+        
+        -- 2. Выбор инструмента
+        VirtualInputManager:SendKeyEvent(true, "One", false, nil)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, "One", false, nil)
+        task.wait(0.5)
+        
+        -- 3. Добыча
+        while isRunning and Stones.Value < Limits:GetAttribute("Backpack") do
+            VirtualInputManager:SendMouseButtonEvent(500, 300, 0, true, nil, 0)
+            task.wait(0.1)
+        end
+        
+        -- Нажатие 1 перед продажей
+        if Stones.Value >= Limits:GetAttribute("Backpack") then
+            VirtualInputManager:SendKeyEvent(true, "One", false, nil)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, "One", false, nil)
+            task.wait(0.5)
+        end
+        
+        -- 4. Продажа
+        safeTeleport(SELL_SPOT)
+        task.wait(1)
+        while isRunning and Stones.Value > 0 do
+            VirtualInputManager:SendKeyEvent(true, "E", false, nil)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, "E", false, nil)
+            task.wait(0.5)
+        end
+        
+        -- 5. Круги телепортации
+        safeTeleport(WAIT_SPOT)
+        task.wait(5)
+        
+        local circle1 = smoothTeleport({
+            Vector3.new(-2.82,5,8.16),
+            Vector3.new(-7.82,5,8.16),
+            Vector3.new(-2.82,5,13.16),
+            Vector3.new(2.18,5,8.16),
+            Vector3.new(-2.82,5,3.16),
+            Vector3.new(-7.82,5,8.16)
+        }, 7)
+        
+        if circle1 and isRunning then
+            local circle2 = smoothTeleport({
+                Vector3.new(-7.82,5,8.16),
+                Vector3.new(-12.82,5,8.16),
+                Vector3.new(-2.82,5,18.16),
+                Vector3.new(7.18,5,7.16),
+                Vector3.new(-2.82,5,-1.84),
+                Vector3.new(-12.82,5,8.16)
+            }, 14)
+            
+            if circle2 and isRunning then
+                local circle3 = smoothTeleport({
+                    Vector3.new(-12.82,5,8.16),
+                    Vector3.new(-17.82,5,8.16),
+                    Vector3.new(-2.82,5,23.16),
+                    Vector3.new(12.18,5,8.16),
+                    Vector3.new(-2.82,5,-6.84),
+                    Vector3.new(-17.82,5,8.16)
+                }, 21)
+                
+                if circle3 and isRunning then
+                    local circle4 = smoothTeleport({
+                        Vector3.new(-17.82,5,8.16),
+                        Vector3.new(-22.82,5,8.16),
+                        Vector3.new(-2.82,5,28.16),
+                        Vector3.new(17.18,5,8.16),
+                        Vector3.new(-2.82,5,-11.84),
+                        Vector3.new(-22.82,5,8.16)
+                    }, 28)
+                    
+                    if circle4 and isRunning then
+                        smoothTeleport({
+                            Vector3.new(-22.82,5,8.16),
+                            Vector3.new(-27.82,5,8.16),
+                            Vector3.new(-17.82,5,23.16),
+                            Vector3.new(-2.82,5,33.16),
+                            Vector3.new(12.18,5,23.16),
+                            Vector3.new(22.18,5,8.16),
+                            Vector3.new(12.18,5,-6.84),
+                            Vector3.new(-2.82,5,-16.84),
+                            Vector3.new(-17.82,5,-6.84),
+                            Vector3.new(-27.82,5,8.16)
+                        }, 35)
+                    end
+                end
+            end
+        end
+    end
+    
+    stopAllProcesses()
+end
+
+-- Обработчики UI
+activateButton.MouseButton1Click:Connect(function()
+    isRunning = not isRunning
+    activateButton.Text = isRunning and "ON" or "OFF"
+    activateButton.BackgroundColor3 = isRunning and Color3.fromRGB(50,255,50) or Color3.fromRGB(255,50,50)
+    
+    if isRunning then 
+        coroutine.wrap(farmProcess)()
+    else
+        stopAllProcesses()
+    end
+end)
+
+closeButton.MouseButton1Click:Connect(cleanUp)
+screenGui.Destroying:Connect(cleanUp)
