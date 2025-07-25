@@ -7,7 +7,8 @@ local RunService = game:GetService("RunService")
 -- Константы точек
 local FARM_SPOT = CFrame.new(50.5, 5, -10)
 local SELL_SPOT = CFrame.new(40, 5, -22)
-local WAIT_SPOT = CFrame.new(-2.82, 5, 8.16)
+local DEFAULT_HEIGHT = 5 -- Начальная высота для всех точек
+local WAIT_SPOT = CFrame.new(-2.82, DEFAULT_HEIGHT, 8.16)
 local PREPARE_SPOTS = {
     CFrame.new(46.5, 8.5, 5),
     CFrame.new(41, 8.5, 5), 
@@ -36,7 +37,7 @@ screenGui.Name = "AutoFarmUI_"..math.random(1000,9999)
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 250, 0, 150)
+mainFrame.Size = UDim2.new(0, 300, 0, 150)
 mainFrame.Position = UDim2.new(0, 20, 0.2, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BackgroundTransparency = 0.7
@@ -46,7 +47,7 @@ mainFrame.Parent = screenGui
 local dragHandle = Instance.new("TextLabel")
 dragHandle.Name = "DragHandle"
 dragHandle.Size = UDim2.new(1, 0, 0, 30)
-dragHandle.Text = "⚡Auto Farm⚡ V3"
+dragHandle.Text = "⚡Auto Farm⚡ V3.1"
 dragHandle.TextColor3 = Color3.fromRGB(255, 255, 255)
 dragHandle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 dragHandle.BackgroundTransparency = 0.7
@@ -65,7 +66,7 @@ minimizeButton.Parent = mainFrame
 
 local activateButton = Instance.new("TextButton")
 activateButton.Size = UDim2.new(0.8, 0, 0, 40)
-activateButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+activateButton.Position = UDim2.new(0.1, 0, 0.3, -5)
 activateButton.Text = "OFF"
 activateButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -79,31 +80,49 @@ closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 closeButton.Parent = mainFrame
 
--- Слайдер скорости
-local speedSlider = Instance.new("TextLabel")
-speedSlider.Name = "SpeedSlider"
-speedSlider.Size = UDim2.new(0.8, 0, 0, 20)
-speedSlider.Position = UDim2.new(0.1, 0, 0.7, -5.5)
-speedSlider.Text = "SpeedBricks: "..F_SPAM_SPEED
-speedSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedSlider.BackgroundTransparency = 1
-speedSlider.TextSize = 10
-speedSlider.Parent = mainFrame
+-- Поле ввода скорости
+local speedInputLabel = Instance.new("TextLabel")
+speedInputLabel.Name = "SpeedInputLabel"
+speedInputLabel.Size = UDim2.new(0.4, 0, 0, 20)
+speedInputLabel.Position = UDim2.new(0.1, 0, 0.6, 0)
+speedInputLabel.Text = "Speed (1-10):"
+speedInputLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedInputLabel.BackgroundTransparency = 1
+speedInputLabel.TextSize = 10
+speedInputLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedInputLabel.Parent = mainFrame
 
-local speedSliderBar = Instance.new("Frame")
-speedSliderBar.Name = "SpeedSliderBar"
-speedSliderBar.Size = UDim2.new(0.8, 0, 0, 5)
-speedSliderBar.Position = UDim2.new(0.1, 0, 0.8, 0)
-speedSliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-speedSliderBar.Parent = mainFrame
+local speedInputBox = Instance.new("TextBox")
+speedInputBox.Name = "SpeedInputBox"
+speedInputBox.Size = UDim2.new(0.3, 0, 0, 20)
+speedInputBox.Position = UDim2.new(0.5, 0, 0.6, 0)
+speedInputBox.Text = tostring(F_SPAM_SPEED)
+speedInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedInputBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+speedInputLabel.TextSize = 12
+speedInputBox.Parent = mainFrame
 
-local speedSliderButton = Instance.new("TextButton")
-speedSliderButton.Name = "SpeedSliderButton"
-speedSliderButton.Size = UDim2.new(0, 15, 0, 15)
-speedSliderButton.Position = UDim2.new((F_SPAM_SPEED-1)/9, 0, 0, -5)
-speedSliderButton.Text = ""
-speedSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-speedSliderButton.Parent = speedSliderBar
+-- Поле ввода высоты
+local heightInputLabel = Instance.new("TextLabel")
+heightInputLabel.Name = "HeightInputLabel"
+heightInputLabel.Size = UDim2.new(0.4, 0, 0, 20)
+heightInputLabel.Position = UDim2.new(0.1, 0, 0.7, 10)
+heightInputLabel.Text = "Tower Height:"
+heightInputLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+heightInputLabel.BackgroundTransparency = 1
+heightInputLabel.TextSize = 10
+heightInputLabel.TextXAlignment = Enum.TextXAlignment.Left
+heightInputLabel.Parent = mainFrame
+
+local heightInputBox = Instance.new("TextBox")
+heightInputBox.Name = "HeightInputBox"
+heightInputBox.Size = UDim2.new(0.3, 0, 0, 20)
+heightInputBox.Position = UDim2.new(0.5, 0, 0.7, 10)
+heightInputBox.Text = tostring(DEFAULT_HEIGHT)
+heightInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+heightInputBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+heightInputLabel.TextSize = 12
+heightInputBox.Parent = mainFrame
 
 -- Переменные состояния
 local isRunning = false
@@ -111,22 +130,30 @@ local isMinimized = false
 local cameraConnection, fSpamConnection, miningConnection
 local dragStartPos, dragStartFramePos
 local isMining = false
-local isAdjustingSpeed = false
+
+-- Функция обновления высоты всех точек
+local function updateHeight(newHeight)
+    WAIT_SPOT = CFrame.new(-2.82, newHeight, 8.16)
+end
 
 -- Функция сворачивания интерфейса
 local function toggleMinimize()
     isMinimized = not isMinimized
     if isMinimized then
-        mainFrame.Size = UDim2.new(0, 250, 0, 30)
+        mainFrame.Size = UDim2.new(0, 300, 0, 30)
         activateButton.Visible = false
-        speedSlider.Visible = false
-        speedSliderBar.Visible = false
+        speedInputLabel.Visible = false
+        speedInputBox.Visible = false
+        heightInputLabel.Visible = false
+        heightInputBox.Visible = false
         minimizeButton.Text = "→"
     else
-        mainFrame.Size = UDim2.new(0, 250, 0, 150)
+        mainFrame.Size = UDim2.new(0, 300, 0, 180)
         activateButton.Visible = true
-        speedSlider.Visible = true
-        speedSliderBar.Visible = true
+        speedInputLabel.Visible = true
+        speedInputBox.Visible = true
+        heightInputLabel.Visible = true
+        heightInputBox.Visible = true
         minimizeButton.Text = "←"
     end
 end
@@ -208,29 +235,27 @@ dragHandle.InputChanged:Connect(function(input)
     end
 end)
 
--- Обработка слайдера скорости
-speedSliderButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        isAdjustingSpeed = true
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if isAdjustingSpeed and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local xPos = math.clamp((input.Position.X - speedSliderBar.AbsolutePosition.X) / speedSliderBar.AbsoluteSize.X, 0, 1)
-        speedSliderButton.Position = UDim2.new(xPos, 0, 0, -5)
-        F_SPAM_SPEED = 1 + math.floor(xPos * 9)
-        speedSlider.Text = "SpeedBricks: "..F_SPAM_SPEED
-        
+-- Обработчики полей ввода
+speedInputBox.FocusLost:Connect(function()
+    local newSpeed = tonumber(speedInputBox.Text)
+    if newSpeed and newSpeed >= 1 and newSpeed <= 10 then
+        F_SPAM_SPEED = newSpeed
+        speedInputBox.Text = tostring(F_SPAM_SPEED)
         if isRunning then
             startFSpam()
         end
+    else
+        speedInputBox.Text = tostring(F_SPAM_SPEED)
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        isAdjustingSpeed = false
+heightInputBox.FocusLost:Connect(function()
+    local newHeight = tonumber(heightInputBox.Text)
+    if newHeight then
+        updateHeight(newHeight)
+        heightInputBox.Text = tostring(newHeight)
+    else
+        heightInputBox.Text = tostring(DEFAULT_HEIGHT)
     end
 end)
 
@@ -292,55 +317,57 @@ local function stopMining()
     end
 end
 
--- Все 5 кругов телепортации
+-- Все 5 кругов телепортации с учетом высоты
 local function performTeleportCircles()
+    local currentHeight = tonumber(heightInputBox.Text) or DEFAULT_HEIGHT
+    
     local points1 = {
-        Vector3.new(-2.82,5,8.16),
-        Vector3.new(-7.82,5,8.16),
-        Vector3.new(-2.82,5,13.16),
-        Vector3.new(2.18,5,8.16),
-        Vector3.new(-2.82,5,3.16),
-        Vector3.new(-7.82,5,8.16)
+        Vector3.new(-2.82, currentHeight, 8.16),
+        Vector3.new(-7.82, currentHeight, 8.16),
+        Vector3.new(-2.82, currentHeight, 13.16),
+        Vector3.new(2.18, currentHeight, 8.16),
+        Vector3.new(-2.82, currentHeight, 3.16),
+        Vector3.new(-7.82, currentHeight, 8.16)
     }
     
     local points2 = {
-        Vector3.new(-7.82,5,8.16),
-        Vector3.new(-12.82,5,8.16),
-        Vector3.new(-2.82,5,18.16),
-        Vector3.new(7.18,5,7.16),
-        Vector3.new(-2.82,5,-1.84),
-        Vector3.new(-12.82,5,8.16)
+        Vector3.new(-7.82, currentHeight, 8.16),
+        Vector3.new(-12.82, currentHeight, 8.16),
+        Vector3.new(-2.82, currentHeight, 18.16),
+        Vector3.new(7.18, currentHeight, 7.16),
+        Vector3.new(-2.82, currentHeight, -1.84),
+        Vector3.new(-12.82, currentHeight, 8.16)
     }
     
     local points3 = {
-        Vector3.new(-12.82,5,8.16),
-        Vector3.new(-17.82,5,8.16),
-        Vector3.new(-2.82,5,23.16),
-        Vector3.new(12.18,5,8.16),
-        Vector3.new(-2.82,5,-6.84),
-        Vector3.new(-17.82,5,8.16)
+        Vector3.new(-12.82, currentHeight, 8.16),
+        Vector3.new(-17.82, currentHeight, 8.16),
+        Vector3.new(-2.82, currentHeight, 23.16),
+        Vector3.new(12.18, currentHeight, 8.16),
+        Vector3.new(-2.82, currentHeight, -6.84),
+        Vector3.new(-17.82, currentHeight, 8.16)
     }
     
     local points4 = {
-        Vector3.new(-17.82,5,8.16),
-        Vector3.new(-22.82,5,8.16),
-        Vector3.new(-2.82,5,28.16),
-        Vector3.new(17.18,5,8.16),
-        Vector3.new(-2.82,5,-11.84),
-        Vector3.new(-22.82,5,8.16)
+        Vector3.new(-17.82, currentHeight, 8.16),
+        Vector3.new(-22.82, currentHeight, 8.16),
+        Vector3.new(-2.82, currentHeight, 28.16),
+        Vector3.new(17.18, currentHeight, 8.16),
+        Vector3.new(-2.82, currentHeight, -11.84),
+        Vector3.new(-22.82, currentHeight, 8.16)
     }
     
     local points5 = {
-        Vector3.new(-22.82,5,8.16),
-        Vector3.new(-27.82,5,8.16),
-        Vector3.new(-17.82,5,23.16),
-        Vector3.new(-2.82,5,33.16),
-        Vector3.new(12.18,5,23.16),
-        Vector3.new(22.18,5,8.16),
-        Vector3.new(12.18,5,-6.84),
-        Vector3.new(-2.82,5,-16.84),
-        Vector3.new(-17.82,5,-6.84),
-        Vector3.new(-27.82,5,8.16)
+        Vector3.new(-22.82, currentHeight, 8.16),
+        Vector3.new(-27.82, currentHeight, 8.16),
+        Vector3.new(-17.82, currentHeight, 23.16),
+        Vector3.new(-2.82, currentHeight, 33.16),
+        Vector3.new(12.18, currentHeight, 23.16),
+        Vector3.new(22.18, currentHeight, 8.16),
+        Vector3.new(12.18, currentHeight, -6.84),
+        Vector3.new(-2.82, currentHeight, -16.84),
+        Vector3.new(-17.82, currentHeight, -6.84),
+        Vector3.new(-27.82, currentHeight, 8.16)
     }
 
     local function executeCircle(points, duration)
